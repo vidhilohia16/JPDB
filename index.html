@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Student Enrollment Form · JSON Power DB</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- jQuery is required by jpdb-commons.js for the AJAX calls -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<!-- Official JsonPowerDB helper library: builds createPUTRequest / createGET_BY_KEYRequest / createUPDATERecordRequest strings -->
+<script src="https://login2explore.com/jpdb/resources/js/0.0.4/jpdb-commons.js"></script>
+
+<style>
+  :root{
+    --paper:#F6F1E4; --paper-dark:#EDE5D0; --navy:#1C2B44; --ink:#2E4C7E;
+    --red:#AE4038; --gold:#B98F2C; --muted:#83786A; --line: rgba(28,43,68,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:radial-gradient(ellipse at top left, rgba(185,143,44,0.08), transparent 55%), var(--paper);
+    font-family:'IBM Plex Sans', sans-serif; color:var(--navy); min-height:100vh; padding:32px 16px;
+    display:flex; justify-content:center;
+  }
+  .book{
+    width:100%; max-width:780px; background:var(--paper); border-radius:6px;
+    box-shadow:0 1px 0 rgba(28,43,68,0.05), 0 20px 50px -25px rgba(28,43,68,0.45);
+    display:flex; position:relative; overflow:hidden; border:1px solid var(--line);
+  }
+  .spine{
+    width:44px; flex-shrink:0;
+    background:repeating-linear-gradient(180deg, var(--navy) 0 2px, #24365a 2px 34px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .spine span{
+    writing-mode:vertical-rl; transform:rotate(180deg); color:var(--paper);
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.28em; opacity:0.85;
+  }
+  .content{ flex:1; padding:30px 36px 28px; min-width:0; }
+  .config-note{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; line-height:1.6; color:var(--red);
+    background:rgba(174,64,56,0.08); border:1px solid rgba(174,64,56,0.25); border-radius:4px;
+    padding:10px 12px; margin-bottom:18px;
+  }
+  .config-note code{ background:rgba(28,43,68,0.08); padding:1px 5px; border-radius:3px; color:var(--navy); }
+  header.head{
+    margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:14px;
+    display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+  }
+  .eyebrow{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; margin:0 0 6px; }
+  h1{ font-family:'Fraunces', serif; font-weight:600; font-size:27px; margin:0; line-height:1.15; }
+  .rec-count{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); text-align:right; white-space:nowrap; }
+  .rec-count b{ color:var(--ink); }
+  .field-row{
+    display:grid; grid-template-columns:150px 1fr; gap:14px; align-items:center;
+    padding:11px 0; border-bottom:1px dashed var(--line); position:relative;
+  }
+  .field-row.key-row{ border-bottom:1px solid var(--line); padding-bottom:14px; }
+  label{ font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.04em; color:var(--ink); }
+  .key-row label{ color:var(--red); font-weight:600; }
+  input, textarea{
+    width:100%; border:none; border-bottom:1px solid transparent; background:transparent;
+    font-family:'IBM Plex Sans', sans-serif; font-size:15px; color:var(--navy); padding:6px 4px;
+    outline:none; transition:border-color .15s ease, background .15s ease; border-radius:3px;
+  }
+  textarea{ resize:vertical; min-height:38px; }
+  input:disabled, textarea:disabled{ color:#B4AC9C; cursor:not-allowed; }
+  input:not(:disabled):focus, textarea:not(:disabled):focus{ background:rgba(185,143,44,0.08); border-bottom-color:var(--gold); }
+  #rollno{ font-family:'IBM Plex Mono', monospace; font-size:16px; font-weight:600; letter-spacing:0.03em; }
+  .stamp{
+    position:absolute; top:22px; right:34px; font-family:'IBM Plex Mono', monospace; font-size:12px;
+    font-weight:600; letter-spacing:0.12em; padding:6px 12px; border:2px solid var(--red); color:var(--red);
+    border-radius:4px; transform:rotate(-8deg) scale(0.6); opacity:0; pointer-events:none;
+    transition:transform .28s cubic-bezier(.34,1.56,.64,1), opacity .2s ease;
+  }
+  .stamp.show{ opacity:0.9; transform:rotate(-8deg) scale(1); }
+  .stamp.on-record{ border-color:var(--ink); color:var(--ink); }
+  .actions{ margin-top:22px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button{
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:11px 20px; border-radius:4px; border:1px solid var(--navy); background:var(--navy); color:var(--paper);
+    cursor:pointer; transition:transform .1s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled){ transform:translateY(-1px); }
+  button:disabled{ opacity:0.32; cursor:not-allowed; transform:none; }
+  #resetBtn{ background:transparent; color:var(--navy); }
+  #updateBtn{ background:var(--gold); border-color:var(--gold); color:#3a2c05; }
+  .status{ margin-top:15px; font-size:13px; font-family:'IBM Plex Mono', monospace; padding:10px 12px; border-radius:4px; display:none; white-space:pre-wrap; }
+  .status.err{ display:block; background:rgba(174,64,56,0.1); color:var(--red); }
+  .status.ok{ display:block; background:rgba(46,76,126,0.09); color:var(--ink); }
+  .register-list{ margin-top:24px; border-top:1px solid var(--line); padding-top:14px; }
+  .register-list h2{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; }
+  .roll-chip{
+    display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:12px; background:var(--paper-dark);
+    border:1px solid var(--line); color:var(--ink); padding:4px 9px; border-radius:3px; margin:0 6px 6px 0;
+  }
+  .empty-note{ font-size:12.5px; color:var(--muted); font-style:italic; }
+  @media (max-width:520px){
+    .field-row{ grid-template-columns:1fr; gap:4px; }
+    .stamp{ top:18px; right:18px; font-size:10px; padding:4px 9px; }
+    .content{ padding:24px 18px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="book">
+  <div class="spine"><span>SCHOOL-DB · STUDENT-TABLE · JPDB</span></div>
+  <div class="content">
+
+    <header class="head">
+      <div>
+        <p class="eyebrow">Enrollment Register — live on JsonPowerDB</p>
+        <h1>Student Enrollment Form</h1>
+      </div>
+      <div class="rec-count">Records on file<br><b id="recCount">–</b></div>
+    </header>
+
+    <div style="position:relative;">
+      <div class="stamp" id="stamp">NEW ENTRY</div>
+
+      <form id="regForm" autocomplete="off">
+        <div class="field-row key-row">
+          <label for="rollno">Roll No.</label>
+          <input id="rollno" name="rollno" type="text" placeholder="Type a roll number, then press Tab or Enter" />
+        </div>
+        <div class="field-row">
+          <label for="fullname">Full Name</label>
+          <input id="fullname" name="fullname" type="text" disabled />
+        </div>
+        <div class="field-row">
+          <label for="className">Class</label>
+          <input id="className" name="className" type="text" disabled placeholder="e.g. 10-B" />
+        </div>
+        <div class="field-row">
+          <label for="birthdate">Birth Date</label>
+          <input id="birthdate" name="birthdate" type="date" disabled />
+        </div>
+        <div class="field-row">
+          <label for="address">Address</label>
+          <textarea id="address" name="address" disabled rows="2"></textarea>
+        </div>
+        <div class="field-row">
+          <label for="enrolldate">Enrollment Date</label>
+          <input id="enrolldate" name="enrolldate" type="date" disabled />
+        </div>
+
+        <div class="actions">
+          <button type="button" id="saveBtn" disabled>Save</button>
+          <button type="button" id="updateBtn" disabled>Update</button>
+          <button type="button" id="resetBtn" disabled>Reset</button>
+        </div>
+      </form>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="register-list">
+      <h2>Rolls currently on record</h2>
+      <div id="rollList"><span class="empty-note">Click into the Roll No. field to connect to the register.</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  // ---------------- JPDB CONFIG ----------------
+  function getConnectionToken(){
+    // Get this from http://api.login2explore.com:5577/user/index.html -> Tools -> Tokens
+    return "90933496|-31949247220749609|90903861";
+  }
+  var DB_NAME   = "SCHOOL-DB";
+  var REL_NAME  = "STUDENT-TABLE";
+  var BASE_URL  = "http://api.login2explore.com:5577";
+  var IML_URL   = "/api/iml";  // insert/update/delete
+  var IRL_URL   = "/api/irl";  // retrieve
+  // -----------------------------------------------
+
+  // Same executeCommand pattern used in the standard JPDB micro-project template:
+  // synchronous POST so the JSON response can be returned directly to the caller.
+  function executeCommand(reqStr, baseUrl, endPoint){
+    var resultObj = null;
+    jQuery.ajaxSetup({ async: false });
+    jQuery.post(baseUrl + endPoint, reqStr, function(result){
+      resultObj = (typeof result === "string") ? JSON.parse(result) : result;
+    }).fail(function(xhr){
+      try { resultObj = JSON.parse(xhr.responseText); }
+      catch(e){ resultObj = { status: 0, message: "Could not reach JsonPowerDB. Check your network / token." }; }
+    });
+    jQuery.ajaxSetup({ async: true });
+    return resultObj;
+  }
+
+  var fieldOrder = ['rollno','fullname','className','birthdate','address','enrolldate'];
+  var els = {};
+  fieldOrder.forEach(function(id){ els[id] = document.getElementById(id); });
+  var saveBtn = document.getElementById('saveBtn');
+  var updateBtn = document.getElementById('updateBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var statusEl = document.getElementById('status');
+  var stampEl = document.getElementById('stamp');
+  var recCountEl = document.getElementById('recCount');
+  var rollListEl = document.getElementById('rollList');
+
+  var mode = 'idle';        // idle | new | existing
+  var currentRecNo = null;  // rec_no returned by GET_BY_KEY, needed for UPDATE
+
+  function setStatus(msg, kind){
+    statusEl.textContent = msg || '';
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function setOtherFieldsDisabled(disabled){
+    fieldOrder.slice(1).forEach(function(id){ els[id].disabled = disabled; });
+  }
+  function clearOtherFields(){
+    fieldOrder.slice(1).forEach(function(id){ els[id].value = ''; });
+  }
+  function hideStamp(){ stampEl.classList.remove('show','on-record'); }
+  function showStamp(text, onRecord){
+    stampEl.textContent = text;
+    stampEl.classList.toggle('on-record', !!onRecord);
+    requestAnimationFrame(function(){ stampEl.classList.add('show'); });
+  }
+
+  function resetForm(focusKey){
+    mode = 'idle';
+    currentRecNo = null;
+    els.rollno.disabled = false;
+    els.rollno.value = '';
+    clearOtherFields();
+    setOtherFieldsDisabled(true);
+    saveBtn.disabled = true;
+    updateBtn.disabled = true;
+    resetBtn.disabled = true;
+    hideStamp();
+    setStatus('');
+    if (focusKey !== false) els.rollno.focus();
+  }
+
+  function validateAllFilled(){
+    for (var i = 0; i < fieldOrder.length; i++){
+      if (!String(els[fieldOrder[i]].value || '').trim()) return false;
+    }
+    return true;
+  }
+
+  function collectRecord(){
+    var rec = {};
+    fieldOrder.forEach(function(id){ rec[id] = els[id].value.trim(); });
+    return rec;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // GET_ALL, just to populate the "rolls on file" strip — best effort, ignores errors
+  function refreshRegisterList(){
+    try{
+      var reqStr = createGET_ALLRequest
+        ? createGET_ALLRequest(getConnectionToken(), DB_NAME, REL_NAME, ["rollno"], 1, 200)
+        : JSON.stringify({ token:getConnectionToken(), cmd:"GET_ALL", dbName:DB_NAME, rel:REL_NAME, cols:["rollno"], pageNo:1, pageSize:200 });
+      var res = executeCommand(reqStr, BASE_URL, IRL_URL);
+      if (res && res.status === 200 && res.data && res.data.json_records){
+        var rolls = res.data.json_records.map(function(r){ return r.record.rollno; }).sort();
+        recCountEl.textContent = res.data.total_records != null ? res.data.total_records : rolls.length;
+        rollListEl.innerHTML = rolls.length
+          ? rolls.map(function(r){ return '<span class="roll-chip">' + escapeHtml(r) + '</span>'; }).join('')
+          : '<span class="empty-note">No students enrolled yet.</span>';
+      } else {
+        recCountEl.textContent = '–';
+        rollListEl.innerHTML = '<span class="empty-note">Register not reachable yet — check your connection token.</span>';
+      }
+    } catch(e){
+      recCountEl.textContent = '–';
+    }
+  }
+
+  // ---- primary-key lookup via GET_BY_KEY, triggered on blur / Enter ----
+  function handleRollLookup(){
+    var roll = els.rollno.value.trim();
+    if (!roll){ resetForm(false); return; }
+
+    setStatus('Checking roll number…', 'ok');
+    var reqStr = createGET_BY_KEYRequest(getConnectionToken(), DB_NAME, REL_NAME, JSON.stringify({ rollno: roll }), false, false);
+    var res = executeCommand(reqStr, BASE_URL, IRL_URL);
+
+    if (res && res.status === 200 && res.data){
+      // existing record found
+      mode = 'existing';
+      currentRecNo = res.data.rec_no;
+      var rec = res.data.record || {};
+      fieldOrder.slice(1).forEach(function(id){ els[id].value = rec[id] || ''; });
+      els.rollno.disabled = true;
+      setOtherFieldsDisabled(false);
+      saveBtn.disabled = true;
+      updateBtn.disabled = false;
+      resetBtn.disabled = false;
+      showStamp('ON RECORD', true);
+      setStatus('Record found — edit the fields below, then click Update.', 'ok');
+      els.fullname.focus();
+    } else {
+      // not found -> new entry (JPDB returns 400 when relation/key doesn't exist yet, which is expected on first use)
+      mode = 'new';
+      currentRecNo = null;
+      clearOtherFields();
+      setOtherFieldsDisabled(false);
+      saveBtn.disabled = false;
+      updateBtn.disabled = true;
+      resetBtn.disabled = false;
+      showStamp('NEW ENTRY', false);
+      setStatus('New roll number — fill in the remaining fields, then click Save.', 'ok');
+      els.fullname.focus();
+    }
+  }
+
+  els.rollno.addEventListener('blur', handleRollLookup);
+  els.rollno.addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ e.preventDefault(); handleRollLookup(); }
+  });
+
+  saveBtn.addEventListener('click', function(){
+    if (mode !== 'new') return;
+    if (!validateAllFilled()){
+      setStatus('Every field is required before a record can be saved.', 'err');
+      return;
+    }
+    var rec = collectRecord();
+    saveBtn.disabled = true;
+    var putReqStr = createPUTRequest(getConnectionToken(), JSON.stringify(rec), DB_NAME, REL_NAME);
+    var res = executeCommand(putReqStr, BASE_URL, IML_URL);
+    if (res && res.status === 200){
+      refreshRegisterList();
+      resetForm();
+      setStatus('Roll ' + rec.rollno + ' saved to STUDENT-TABLE. ' + (res.message || ''), 'ok');
+    } else {
+      saveBtn.disabled = false;
+      setStatus('Save failed: ' + (res && res.message ? res.message : 'unknown error'), 'err');
+    }
+  });
+
+  updateBtn.addEventListener('click', function(){
+    if (mode !== 'existing' || currentRecNo == null) return;
+    if (!validateAllFilled()){
+      setStatus('Every field is required before a record can be updated.', 'err');
+      return;
+    }
+    var roll = els.rollno.value.trim();
+    var rec = collectRecord();
+    delete rec.rollno; // primary key column is not part of the field update payload
+    updateBtn.disabled = true;
+    var updReqStr = createUPDATERecordRequest(getConnectionToken(), JSON.stringify(rec), DB_NAME, REL_NAME, currentRecNo);
+    var res = executeCommand(updReqStr, BASE_URL, IML_URL);
+    if (res && res.status === 200){
+      refreshRegisterList();
+      resetForm();
+      setStatus('Roll ' + roll + ' updated in STUDENT-TABLE. ' + (res.message || ''), 'ok');
+    } else {
+      updateBtn.disabled = false;
+      setStatus('Update failed: ' + (res && res.message ? res.message : 'unknown error'), 'err');
+    }
+  });
+
+  resetBtn.addEventListener('click', function(){ resetForm(); });
+
+  // initial load
+  resetForm();
+  refreshRegisterList();
+})();
+</script>
+
+</body>
+</html>
